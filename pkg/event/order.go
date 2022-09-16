@@ -1,6 +1,8 @@
 package event
 
-import "github.com/rodoufu/simple-orderbook/pkg/entity"
+import (
+	"github.com/rodoufu/simple-orderbook/pkg/entity"
+)
 
 type OrderCancelled struct {
 	Event

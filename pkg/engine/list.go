@@ -14,14 +14,14 @@ var (
 	invalidOrderAmountError = fmt.Errorf("invalid order amount")
 )
 
-type simpleEngine struct {
+type listEngine struct {
 	mtx      sync.Mutex
 	orders   map[entity.Side][]entity.Order
 	events   chan event.Event
 	orderIDs map[entity.OrderID]entity.Side
 }
 
-func (s *simpleEngine) AddOrder(ctx context.Context, order entity.Order) error {
+func (s *listEngine) AddOrder(ctx context.Context, order entity.Order) error {
 	if s == nil {
 		return notStartedError
 	}
@@ -84,7 +84,7 @@ func (s *simpleEngine) AddOrder(ctx context.Context, order entity.Order) error {
 	return nil
 }
 
-func (s *simpleEngine) CancelOrder(ctx context.Context, orderID entity.OrderID) error {
+func (s *listEngine) CancelOrder(ctx context.Context, orderID entity.OrderID) error {
 	if s == nil {
 		return notStartedError
 	}
@@ -111,15 +111,14 @@ func (s *simpleEngine) CancelOrder(ctx context.Context, orderID entity.OrderID) 
 		sideOrders = sideOrders[:len(sideOrders)-1]
 		s.orders[side] = sideOrders
 
-		delete(s.orderIDs, orderID)
 		return nil
 	}
 
 	return fmt.Errorf("order %v not found", orderID)
 }
 
-func NewSimpleEngine() MatchingEngine {
-	return &simpleEngine{
+func NewListEngine() MatchingEngine {
+	return &listEngine{
 		mtx: sync.Mutex{},
 		orders: map[entity.Side][]entity.Order{
 			entity.Buy:  {},

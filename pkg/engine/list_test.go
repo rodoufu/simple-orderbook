@@ -17,7 +17,7 @@ func Test_simpleEngine_AddOrder(t *testing.T) {
 	}
 	tests := []struct {
 		name       string
-		engine     *simpleEngine
+		engine     *listEngine
 		args       args
 		wantErr    bool
 		wantOrders map[entity.Side][]entity.Order
@@ -28,7 +28,7 @@ func Test_simpleEngine_AddOrder(t *testing.T) {
 		},
 		{
 			name: "empty book, add sell",
-			engine: &simpleEngine{
+			engine: &listEngine{
 				orderIDs: map[entity.OrderID]entity.Side{},
 				orders: map[entity.Side][]entity.Order{
 					entity.Sell: {},
@@ -62,7 +62,7 @@ func Test_simpleEngine_AddOrder(t *testing.T) {
 		},
 		{
 			name: "empty book, add buy",
-			engine: &simpleEngine{
+			engine: &listEngine{
 				orderIDs: map[entity.OrderID]entity.Side{},
 				orders: map[entity.Side][]entity.Order{
 					entity.Sell: {},
@@ -96,7 +96,7 @@ func Test_simpleEngine_AddOrder(t *testing.T) {
 		},
 		{
 			name: "add sell",
-			engine: &simpleEngine{
+			engine: &listEngine{
 				orderIDs: map[entity.OrderID]entity.Side{},
 				orders: map[entity.Side][]entity.Order{
 					entity.Sell: {
@@ -145,7 +145,7 @@ func Test_simpleEngine_AddOrder(t *testing.T) {
 		},
 		{
 			name: "add buy",
-			engine: &simpleEngine{
+			engine: &listEngine{
 				orderIDs: map[entity.OrderID]entity.Side{},
 				orders: map[entity.Side][]entity.Order{
 					entity.Sell: {},
@@ -194,7 +194,7 @@ func Test_simpleEngine_AddOrder(t *testing.T) {
 		},
 		{
 			name: "add buy, match, full fill",
-			engine: &simpleEngine{
+			engine: &listEngine{
 				orderIDs: map[entity.OrderID]entity.Side{},
 				orders: map[entity.Side][]entity.Order{
 					entity.Sell: {
@@ -273,7 +273,7 @@ func Test_simpleEngine_AddOrder(t *testing.T) {
 		},
 		{
 			name: "add sell, match, full fill",
-			engine: &simpleEngine{
+			engine: &listEngine{
 				orderIDs: map[entity.OrderID]entity.Side{},
 				orders: map[entity.Side][]entity.Order{
 					entity.Sell: {
@@ -352,7 +352,7 @@ func Test_simpleEngine_AddOrder(t *testing.T) {
 		},
 		{
 			name: "add buy, match, full fill, book is larger",
-			engine: &simpleEngine{
+			engine: &listEngine{
 				orderIDs: map[entity.OrderID]entity.Side{},
 				orders: map[entity.Side][]entity.Order{
 					entity.Sell: {
@@ -438,7 +438,7 @@ func Test_simpleEngine_AddOrder(t *testing.T) {
 		},
 		{
 			name: "add sell, match, full fill, book is larger",
-			engine: &simpleEngine{
+			engine: &listEngine{
 				orderIDs: map[entity.OrderID]entity.Side{},
 				orders: map[entity.Side][]entity.Order{
 					entity.Sell: {
@@ -524,7 +524,7 @@ func Test_simpleEngine_AddOrder(t *testing.T) {
 		},
 		{
 			name: "add buy, match, full fill, order is larger",
-			engine: &simpleEngine{
+			engine: &listEngine{
 				orderIDs: map[entity.OrderID]entity.Side{},
 				orders: map[entity.Side][]entity.Order{
 					entity.Sell: {
@@ -610,7 +610,7 @@ func Test_simpleEngine_AddOrder(t *testing.T) {
 		},
 		{
 			name: "add sell, match, full fill, order is larger",
-			engine: &simpleEngine{
+			engine: &listEngine{
 				orderIDs: map[entity.OrderID]entity.Side{},
 				orders: map[entity.Side][]entity.Order{
 					entity.Sell: {
@@ -696,7 +696,7 @@ func Test_simpleEngine_AddOrder(t *testing.T) {
 		},
 		{
 			name: "add buy, match, full fill two from the book, order is larger",
-			engine: &simpleEngine{
+			engine: &listEngine{
 				orderIDs: map[entity.OrderID]entity.Side{},
 				orders: map[entity.Side][]entity.Order{
 					entity.Sell: {
@@ -789,7 +789,7 @@ func Test_simpleEngine_AddOrder(t *testing.T) {
 		},
 		{
 			name: "add buy, match, full fill 3 from the book, order is larger",
-			engine: &simpleEngine{
+			engine: &listEngine{
 				orderIDs: map[entity.OrderID]entity.Side{},
 				orders: map[entity.Side][]entity.Order{
 					entity.Sell: {
@@ -910,7 +910,7 @@ func Test_simpleEngine_CancelOrder(t *testing.T) {
 	}
 	tests := []struct {
 		name       string
-		engine     *simpleEngine
+		engine     *listEngine
 		args       args
 		wantErr    bool
 		wantOrders map[entity.Side][]entity.Order
@@ -921,7 +921,7 @@ func Test_simpleEngine_CancelOrder(t *testing.T) {
 		},
 		{
 			name:   "order does not exist",
-			engine: &simpleEngine{},
+			engine: &listEngine{},
 			args: args{
 				ctx:     context.Background(),
 				orderID: 1,
@@ -930,7 +930,7 @@ func Test_simpleEngine_CancelOrder(t *testing.T) {
 		},
 		{
 			name: "delete sell order - get empty book",
-			engine: &simpleEngine{
+			engine: &listEngine{
 				orderIDs: map[entity.OrderID]entity.Side{
 					1: entity.Sell,
 				},
@@ -954,7 +954,7 @@ func Test_simpleEngine_CancelOrder(t *testing.T) {
 		},
 		{
 			name: "delete sell order - last order",
-			engine: &simpleEngine{
+			engine: &listEngine{
 				orderIDs: map[entity.OrderID]entity.Side{
 					1: entity.Sell,
 					2: entity.Sell,
@@ -986,7 +986,7 @@ func Test_simpleEngine_CancelOrder(t *testing.T) {
 		},
 		{
 			name: "delete sell order - first order",
-			engine: &simpleEngine{
+			engine: &listEngine{
 				orderIDs: map[entity.OrderID]entity.Side{
 					1: entity.Sell,
 					2: entity.Sell,
@@ -1018,7 +1018,7 @@ func Test_simpleEngine_CancelOrder(t *testing.T) {
 		},
 		{
 			name: "delete sell order - middle order",
-			engine: &simpleEngine{
+			engine: &listEngine{
 				orderIDs: map[entity.OrderID]entity.Side{
 					1: entity.Sell,
 					2: entity.Sell,
