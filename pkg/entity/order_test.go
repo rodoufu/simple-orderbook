@@ -3,6 +3,7 @@ package entity
 import (
 	"reflect"
 	"testing"
+	"time"
 )
 
 func TestOrder_Less(t *testing.T) {
@@ -10,13 +11,142 @@ func TestOrder_Less(t *testing.T) {
 	type args struct {
 		other *Order
 	}
+	time1 := time.Now()
+	time2 := time1.Add(time.Second)
 	tests := []struct {
 		name  string
 		order *Order
 		args  args
 		want  bool
 	}{
-		// TODO: Add test cases.
+		{
+			name: "buy (10, time1), (20, time2)",
+			order: &Order{
+				Price:     10,
+				Timestamp: time1,
+				Side:      Buy,
+			},
+			args: args{
+				other: &Order{
+					Price:     20,
+					Timestamp: time2,
+					Side:      Buy,
+				},
+			},
+			want: true,
+		},
+		{
+			name: "buy (10, time1), (2, time2)",
+			order: &Order{
+				Price:     10,
+				Timestamp: time1,
+				Side:      Buy,
+			},
+			args: args{
+				other: &Order{
+					Price:     2,
+					Timestamp: time2,
+					Side:      Buy,
+				},
+			},
+			want: false,
+		},
+		{
+			name: "buy (10, time1), (10, time2)",
+			order: &Order{
+				Price:     10,
+				Timestamp: time1,
+				Side:      Buy,
+			},
+			args: args{
+				other: &Order{
+					Price:     10,
+					Timestamp: time2,
+					Side:      Buy,
+				},
+			},
+			want: true,
+		},
+		{
+			name: "buy (10, time2), (10, time1)",
+			order: &Order{
+				Price:     10,
+				Timestamp: time2,
+				Side:      Buy,
+			},
+			args: args{
+				other: &Order{
+					Price:     10,
+					Timestamp: time1,
+					Side:      Buy,
+				},
+			},
+			want: false,
+		},
+		{
+			name: "sell (10, time1), (20, time2)",
+			order: &Order{
+				Price:     10,
+				Timestamp: time1,
+				Side:      Sell,
+			},
+			args: args{
+				other: &Order{
+					Price:     20,
+					Timestamp: time2,
+					Side:      Sell,
+				},
+			},
+			want: false,
+		},
+		{
+			name: "sell (10, time1), (2, time2)",
+			order: &Order{
+				Price:     10,
+				Timestamp: time1,
+				Side:      Sell,
+			},
+			args: args{
+				other: &Order{
+					Price:     2,
+					Timestamp: time2,
+					Side:      Sell,
+				},
+			},
+			want: true,
+		},
+		{
+			name: "sell (10, time1), (10, time2)",
+			order: &Order{
+				Price:     10,
+				Timestamp: time1,
+				Side:      Sell,
+			},
+			args: args{
+				other: &Order{
+					Price:     10,
+					Timestamp: time2,
+					Side:      Sell,
+				},
+			},
+			want: true,
+		},
+		{
+			name: "sell (10, time2), (10, time1)",
+			order: &Order{
+				Price:     10,
+				Timestamp: time2,
+				Side:      Sell,
+			},
+			args: args{
+				other: &Order{
+					Price:     10,
+					Timestamp: time1,
+					Side:      Sell,
+				},
+			},
+			want: false,
+		},
 	}
 	for _, tt := range tests {
 		tt := tt
@@ -65,7 +195,16 @@ func TestSide_Opposite(t *testing.T) {
 		s    Side
 		want Side
 	}{
-		// TODO: Add test cases.
+		{
+			name: "buy",
+			s:    Buy,
+			want: Sell,
+		},
+		{
+			name: "sell",
+			s:    Sell,
+			want: Buy,
+		},
 	}
 	for _, tt := range tests {
 		tt := tt
@@ -85,7 +224,21 @@ func TestSide_String(t *testing.T) {
 		s    Side
 		want string
 	}{
-		// TODO: Add test cases.
+		{
+			name: "buy",
+			s:    Buy,
+			want: "buy",
+		},
+		{
+			name: "sell",
+			s:    Sell,
+			want: "sell",
+		},
+		{
+			name: "invalid side",
+			s:    InvalidSide,
+			want: "invalid side",
+		},
 	}
 	for _, tt := range tests {
 		tt := tt
