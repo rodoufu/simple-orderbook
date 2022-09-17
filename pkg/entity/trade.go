@@ -13,5 +13,9 @@ type Trade struct {
 	// Price is how much the client paid for the trade.
 	Price uint64
 	// Timestamp is the moment the trade was created.
-	Timestamp time.Time
+	Timestamp   time.Time
+	BuyUserID   UserID
+	BuyOrderID  OrderID
+	SellUserID  UserID
+	SellOrderID OrderID
 }

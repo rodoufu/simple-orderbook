@@ -1,6 +1,8 @@
 package event
 
 import (
+	"fmt"
+
 	"github.com/rodoufu/simple-orderbook/pkg/entity"
 )
 
@@ -10,10 +12,24 @@ type OrderCancelled struct {
 	Order entity.Order
 }
 
+func (oc *OrderCancelled) Output() string {
+	if oc == nil {
+		return ""
+	}
+	return fmt.Sprintf("A, %v, %v", oc.Order.User, oc.Order.ID)
+}
+
 // OrderCreated is emitted when an order is successfully added to the book.
 type OrderCreated struct {
 	Event
 	Order entity.Order
+}
+
+func (oc *OrderCreated) Output() string {
+	if oc == nil {
+		return ""
+	}
+	return fmt.Sprintf("A, %v, %v", oc.Order.User, oc.Order.ID)
 }
 
 // OrderUpdated is emitted when an order changes.

@@ -18,6 +18,32 @@ type listOrderBook struct {
 	orders map[entity.Side][]entity.Order
 }
 
+func (l *listOrderBook) TopBid(ctx context.Context) *entity.Order {
+	side := entity.Buy
+	l.mtx[side].RLock()
+	defer l.mtx[side].RUnlock()
+
+	lenBuy := len(l.orders[side])
+	if lenBuy == 0 {
+		return nil
+	}
+	resp := l.orders[side][lenBuy-1]
+	return &resp
+}
+
+func (l *listOrderBook) TopAsk(ctx context.Context) *entity.Order {
+	side := entity.Sell
+	l.mtx[side].RLock()
+	defer l.mtx[side].RUnlock()
+
+	lenBuy := len(l.orders[side])
+	if lenBuy == 0 {
+		return nil
+	}
+	resp := l.orders[side][lenBuy-1]
+	return &resp
+}
+
 func (l *listOrderBook) ProcessEvent(ctx context.Context, evt event.Event) error {
 	if l == nil {
 		return notStartedError

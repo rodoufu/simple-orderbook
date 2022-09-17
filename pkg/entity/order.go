@@ -87,12 +87,22 @@ func (o *Order) Match(other *Order) (*Order, *Trade) {
 	if o == nil || other == nil || o.Side.Opposite() != other.Side {
 		return nil, nil
 	}
+
 	aOrder := o
 	bOrder := other
+	buyUserID := o.User
+	buyOrderID := o.ID
+	sellUserID := other.User
+	sellOrderID := other.ID
 	if o.Side == Sell {
 		aOrder = other
 		bOrder = o
+		buyUserID = other.User
+		buyOrderID = other.ID
+		sellUserID = o.User
+		sellOrderID = o.ID
 	}
+
 	if aOrder.Price >= bOrder.Price {
 		if aOrder.Amount == bOrder.Amount {
 			return nil, &Trade{
@@ -101,6 +111,10 @@ func (o *Order) Match(other *Order) (*Order, *Trade) {
 				Amount:       aOrder.Amount,
 				Price:        bOrder.Price,
 				Timestamp:    time.Now(),
+				BuyUserID:    buyUserID,
+				SellUserID:   sellUserID,
+				BuyOrderID:   buyOrderID,
+				SellOrderID:  sellOrderID,
 			}
 		} else if aOrder.Amount > bOrder.Amount {
 			return &Order{
@@ -116,6 +130,10 @@ func (o *Order) Match(other *Order) (*Order, *Trade) {
 					Amount:       bOrder.Amount,
 					Price:        bOrder.Price,
 					Timestamp:    time.Now(),
+					BuyUserID:    buyUserID,
+					SellUserID:   sellUserID,
+					BuyOrderID:   buyOrderID,
+					SellOrderID:  sellOrderID,
 				}
 		} else {
 			return &Order{
@@ -131,6 +149,10 @@ func (o *Order) Match(other *Order) (*Order, *Trade) {
 					Amount:       aOrder.Amount,
 					Price:        bOrder.Price,
 					Timestamp:    time.Now(),
+					BuyUserID:    buyUserID,
+					SellUserID:   sellUserID,
+					BuyOrderID:   buyOrderID,
+					SellOrderID:  sellOrderID,
 				}
 		}
 	}

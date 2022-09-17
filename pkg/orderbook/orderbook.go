@@ -12,4 +12,6 @@ type OrderBook interface {
 
 	Bids(ctx context.Context) <-chan entity.Order
 	Asks(ctx context.Context) <-chan entity.Order
+	TopBid(ctx context.Context) *entity.Order
+	TopAsk(ctx context.Context) *entity.Order
 }
