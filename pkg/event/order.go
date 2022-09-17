@@ -13,10 +13,7 @@ type OrderCancelled struct {
 }
 
 func (oc *OrderCancelled) Output() string {
-	if oc == nil {
-		return ""
-	}
-	return fmt.Sprintf("A, %v, %v", oc.Order.User, oc.Order.ID)
+	return ""
 }
 
 // OrderCreated is emitted when an order is successfully added to the book.
@@ -26,10 +23,7 @@ type OrderCreated struct {
 }
 
 func (oc *OrderCreated) Output() string {
-	if oc == nil {
-		return ""
-	}
-	return fmt.Sprintf("A, %v, %v", oc.Order.User, oc.Order.ID)
+	return ""
 }
 
 // OrderUpdated is emitted when an order changes.
@@ -52,4 +46,17 @@ type OrderFilled struct {
 
 func (of *OrderFilled) Output() string {
 	return ""
+}
+
+// OrderAcknowledge is used only to print messages.
+type OrderAcknowledge struct {
+	Event
+	Order entity.Order
+}
+
+func (oa *OrderAcknowledge) Output() string {
+	if oa == nil {
+		return ""
+	}
+	return fmt.Sprintf("A, %v, %v", oa.Order.User, oa.Order.ID)
 }

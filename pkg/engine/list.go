@@ -96,7 +96,8 @@ func (s *listEngine) AddOrder(ctx context.Context, order entity.Order) error {
 	before := map[entity.Side]*entity.Order{}
 	for _, side := range []entity.Side{entity.Buy, entity.Sell} {
 		if len(s.orders[side]) > 0 {
-			before[side] = &s.orders[side][len(s.orders[side])-1]
+			copyOfTop := s.orders[side][len(s.orders[side])-1]
+			before[side] = &copyOfTop
 		}
 	}
 	defer func() {
@@ -111,6 +112,10 @@ func (s *listEngine) AddOrder(ctx context.Context, order entity.Order) error {
 
 	if _, orderExists := s.orderIDs[order.ID]; orderExists {
 		return fmt.Errorf("order %v alreday exists", order.ID)
+	}
+
+	s.events <- &event.OrderAcknowledge{
+		Order: order,
 	}
 
 	oppositeBook := s.orders[order.Side.Opposite()]
@@ -186,7 +191,8 @@ func (s *listEngine) CancelOrder(ctx context.Context, orderID entity.OrderID) er
 
 	before := map[entity.Side]*entity.Order{}
 	if len(s.orders[side]) > 0 {
-		before[side] = &s.orders[side][len(s.orders[side])-1]
+		copyOfTop := s.orders[side][len(s.orders[side])-1]
+		before[side] = &copyOfTop
 	}
 	defer func() {
 		if len(s.orders[side]) > 0 {
@@ -204,6 +210,9 @@ func (s *listEngine) CancelOrder(ctx context.Context, orderID entity.OrderID) er
 	if index >= 0 && sideOrders[index].ID == orderID {
 		delete(s.orderIDs, orderID)
 		s.events <- &event.OrderCancelled{
+			Order: sideOrders[index],
+		}
+		s.events <- &event.OrderAcknowledge{
 			Order: sideOrders[index],
 		}
 
