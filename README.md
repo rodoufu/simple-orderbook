@@ -1,5 +1,9 @@
 # simple-orderbook
 
+The service implements matching, but it does not implement Market orders, since the description asked to implement a
+limit order book.
+Since the service implements the matching it does not implement order rejection (due to crossed book).
+
 ## Build
 
 The project has a `Makefile` which is able to build the project locally and inside Docker.
@@ -8,6 +12,8 @@ To build the project locally use `make build` and use `make run` to execute it.
 
 In order to build the project using docker one may use `make build_docker` and `make run_docker` to execute it inside
 the container.
+The docker build is using a multi-stage build to get a smaller image and avoid having source code in the intermediary
+images versions.
 
 It is also possible to run the unit tests using `make test` and clean the generated binary and image with `make clean`.
 
