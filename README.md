@@ -58,3 +58,7 @@ The `asks` and `bids` methods return a channel instead of a list to avoid having
 for every request.
 A goroutine is created to populate that channel, which is finalized once all the messages are sent or the context gets
 cancelled.
+
+As an improvement to the order book a binary search tree could be used to keep the sides of the book, so the complexity
+in time for adding an order would decrease to $O(log n)$.
+The complexity to remove an element would remain $O(n)$.
