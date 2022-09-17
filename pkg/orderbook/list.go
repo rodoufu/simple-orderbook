@@ -50,14 +50,14 @@ func (l *listOrderBook) ProcessEvent(ctx context.Context, evt event.Event) error
 	}
 
 	switch it := evt.(type) {
-	case event.TradeGenerated:
-	case event.OrderCancelled:
+	case *event.TradeGenerated:
+	case *event.OrderCancelled:
 		return l.cancelOrder(ctx, it.Order.ID, it.Order.Side)
-	case event.OrderCreated:
+	case *event.OrderCreated:
 		return l.addOrder(ctx, it.Order)
-	case event.OrderUpdated:
+	case *event.OrderUpdated:
 		return l.updateOrder(ctx, it.Order)
-	case event.OrderFilled:
+	case *event.OrderFilled:
 		if it.Full {
 			return l.cancelOrder(ctx, it.Order.ID, it.Order.Side)
 		} else {

@@ -6,17 +6,23 @@ type Transaction interface {
 	transaction()
 }
 
-type NewOrder struct {
+type NewOrderTransaction struct {
 	Transaction
-	Order entity.Order
+	Symbol string
+	Order  entity.Order
 }
 
-type CancelOrder struct {
+type CancelOrderTransaction struct {
 	Transaction
 	User    entity.UserID
 	OrderID entity.OrderID
 }
 
-type FlushAllOrders struct {
+type FlushAllOrdersTransaction struct {
 	Transaction
+}
+
+type ErrorTransaction struct {
+	Transaction
+	Err error
 }

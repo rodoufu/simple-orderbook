@@ -38,10 +38,18 @@ type OrderUpdated struct {
 	Order entity.Order
 }
 
+func (ou *OrderUpdated) Output() string {
+	return ""
+}
+
 // OrderFilled is emitted when an order is successfully filled.
 type OrderFilled struct {
 	Event
 	Order entity.Order
 	// Full indicates if the order was fully filled.
 	Full bool
+}
+
+func (of *OrderFilled) Output() string {
+	return ""
 }

@@ -21,6 +21,14 @@ type listEngine struct {
 	orderIDs map[entity.OrderID]entity.Side
 }
 
+func (s *listEngine) Close() error {
+	if s == nil {
+		return nil
+	}
+	close(s.events)
+	return nil
+}
+
 func (s *listEngine) AddOrder(ctx context.Context, order entity.Order) error {
 	if s == nil {
 		return notStartedError
@@ -42,13 +50,13 @@ func (s *listEngine) AddOrder(ctx context.Context, order entity.Order) error {
 			break
 		}
 		if trade != nil {
-			s.events <- event.TradeGenerated{
+			s.events <- &event.TradeGenerated{
 				Trade: *trade,
 			}
 		}
 		if remainingOrder == nil {
 			delete(s.orderIDs, oppositeBook[i].ID)
-			s.events <- event.OrderFilled{
+			s.events <- &event.OrderFilled{
 				Order: oppositeBook[i],
 				Full:  true,
 			}
@@ -58,14 +66,14 @@ func (s *listEngine) AddOrder(ctx context.Context, order entity.Order) error {
 		}
 
 		if remainingOrder.Side == order.Side {
-			s.events <- event.OrderFilled{
+			s.events <- &event.OrderFilled{
 				Order: oppositeBook[i],
 				Full:  true,
 			}
 			oppositeBook = oppositeBook[:i]
 			order = *remainingOrder
 		} else {
-			s.events <- event.OrderFilled{
+			s.events <- &event.OrderFilled{
 				Order: *remainingOrder,
 				Full:  false,
 			}
@@ -81,7 +89,7 @@ func (s *listEngine) AddOrder(ctx context.Context, order entity.Order) error {
 		book := s.orders[order.Side]
 		book = append(book, order)
 		s.orderIDs[order.ID] = order.Side
-		s.events <- event.OrderCreated{
+		s.events <- &event.OrderCreated{
 			Order: order,
 		}
 		for i := len(book) - 1; i >= 1 && book[i].Less(&book[i-1]); i-- {
@@ -113,7 +121,7 @@ func (s *listEngine) CancelOrder(ctx context.Context, orderID entity.OrderID) er
 	}
 	if index >= 0 && sideOrders[index].ID == orderID {
 		delete(s.orderIDs, orderID)
-		s.events <- event.OrderCancelled{
+		s.events <- &event.OrderCancelled{
 			Order: sideOrders[index],
 		}
 
@@ -127,8 +135,8 @@ func (s *listEngine) CancelOrder(ctx context.Context, orderID entity.OrderID) er
 	return fmt.Errorf("order %v not found", orderID)
 }
 
-func NewListEngine() MatchingEngine {
-	return &listEngine{
+func NewListEngine() (MatchingEngine, <-chan event.Event) {
+	engine := listEngine{
 		mtx: sync.Mutex{},
 		orders: map[entity.Side][]entity.Order{
 			entity.Buy:  {},
@@ -137,4 +145,5 @@ func NewListEngine() MatchingEngine {
 		events:   make(chan event.Event, 10),
 		orderIDs: map[entity.OrderID]entity.Side{},
 	}
+	return &engine, engine.events
 }

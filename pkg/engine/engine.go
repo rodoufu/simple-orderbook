@@ -2,6 +2,7 @@ package engine
 
 import (
 	"context"
+	"io"
 
 	"github.com/rodoufu/simple-orderbook/pkg/entity"
 )
@@ -9,6 +10,7 @@ import (
 // MatchingEngine checks for matching for every added order.
 // An Event will be created case necessary.
 type MatchingEngine interface {
+	io.Closer
 	// AddOrder adds a new order checking for matches.
 	AddOrder(ctx context.Context, order entity.Order) error
 	// CancelOrder remove an order by id.
