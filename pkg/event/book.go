@@ -18,9 +18,10 @@ func (t *TopOfBookChange) Output() string {
 	if t == nil {
 		return ""
 	}
+	sideUpper := strings.ToUpper(t.Side.String())
 	if t.TotalQuantity == 0 {
-		return fmt.Sprintf("B, %v, -, -", strings.ToUpper(t.Side.String())[1])
+		return fmt.Sprintf("B, %v, -, -", sideUpper[0:1])
 	} else {
-		return fmt.Sprintf("B, %v, %v, %v", strings.ToUpper(t.Side.String())[1], t.Price, t.TotalQuantity)
+		return fmt.Sprintf("B, %v, %v, %v", sideUpper[0:1], t.Price, t.TotalQuantity)
 	}
 }

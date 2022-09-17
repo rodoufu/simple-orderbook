@@ -39,6 +39,42 @@ func (s *listEngine) AddOrder(ctx context.Context, order entity.Order) error {
 	s.mtx.Lock()
 	defer s.mtx.Unlock()
 
+	checkBeforeAndAfter := func(side entity.Side, before, after *entity.Order) {
+		if before == nil && after == nil {
+			return
+		}
+		if after == nil {
+			s.events <- &event.TopOfBookChange{
+				Side: side,
+			}
+		} else if before != after {
+			s.events <- &event.TopOfBookChange{
+				Side:          side,
+				Price:         after.Price,
+				TotalQuantity: after.Amount,
+			}
+		}
+	}
+	var sellTop, buyTop *entity.Order
+	if len(s.orders[entity.Sell]) > 0 {
+		sellTop = &s.orders[entity.Sell][len(s.orders[entity.Sell])-1]
+	}
+	if len(s.orders[entity.Buy]) > 0 {
+		buyTop = &s.orders[entity.Buy][len(s.orders[entity.Buy])-1]
+	}
+	defer func() {
+		var nSellTop, nBuyTop *entity.Order
+		if len(s.orders[entity.Sell]) > 0 {
+			nSellTop = &s.orders[entity.Sell][len(s.orders[entity.Sell])-1]
+		}
+		if len(s.orders[entity.Buy]) > 0 {
+			nBuyTop = &s.orders[entity.Buy][len(s.orders[entity.Buy])-1]
+		}
+
+		checkBeforeAndAfter(entity.Sell, sellTop, nSellTop)
+		checkBeforeAndAfter(entity.Buy, buyTop, nBuyTop)
+	}()
+
 	if _, orderExists := s.orderIDs[order.ID]; orderExists {
 		return fmt.Errorf("order %v alreday exists", order.ID)
 	}
