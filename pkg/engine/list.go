@@ -7,6 +7,7 @@ import (
 
 	"github.com/rodoufu/simple-orderbook/pkg/entity"
 	"github.com/rodoufu/simple-orderbook/pkg/event"
+	"github.com/rodoufu/simple-orderbook/pkg/io"
 )
 
 var (
@@ -21,12 +22,65 @@ type listEngine struct {
 	orderIDs map[entity.OrderID]entity.Side
 }
 
+func (s *listEngine) ProcessTransaction(ctx context.Context, transaction io.Transaction) error {
+	switch t := transaction.(type) {
+	case io.NewOrderTransaction:
+		return s.AddOrder(ctx, t.Order)
+	case io.CancelOrderTransaction:
+		return s.CancelOrder(ctx, t.OrderID)
+	case io.ErrorTransaction:
+		return t.Err
+	case io.FlushAllOrdersTransaction:
+		s.mtx.Lock()
+		s.orders = map[entity.Side][]entity.Order{
+			entity.Buy:  {},
+			entity.Sell: {},
+		}
+		s.orderIDs = map[entity.OrderID]entity.Side{}
+		s.mtx.Unlock()
+		return nil
+	default:
+		return fmt.Errorf("problem identifying transaction: %v", transaction)
+	}
+}
+
 func (s *listEngine) Close() error {
 	if s == nil {
 		return nil
 	}
+	s.mtx.Lock()
+	defer s.mtx.Unlock()
 	close(s.events)
 	return nil
+}
+
+func (s *listEngine) checkBeforeAndAfter(side entity.Side, before, after *entity.Order) {
+	if before == nil && after == nil {
+		return
+	}
+	if before == nil {
+		s.events <- &event.TopOfBookChange{
+			Side:          side,
+			Price:         after.Price,
+			TotalQuantity: after.Amount,
+		}
+	} else if after == nil {
+		s.events <- &event.TopOfBookChange{
+			Side: side,
+		}
+	} else if before.Price != after.Price || before.Amount != after.Amount || before.ID != after.ID {
+		top := event.TopOfBookChange{
+			Side:          side,
+			Price:         after.Price,
+			TotalQuantity: after.Amount,
+		}
+
+		for i := len(s.orders[side]) - 2; i >= 0 && s.orders[side][i].Price == top.Price; i-- {
+			top.TotalQuantity += s.orders[side][i].Amount
+		}
+
+		s.events <- &top
+	}
 }
 
 func (s *listEngine) AddOrder(ctx context.Context, order entity.Order) error {
@@ -39,40 +93,20 @@ func (s *listEngine) AddOrder(ctx context.Context, order entity.Order) error {
 	s.mtx.Lock()
 	defer s.mtx.Unlock()
 
-	checkBeforeAndAfter := func(side entity.Side, before, after *entity.Order) {
-		if before == nil && after == nil {
-			return
+	before := map[entity.Side]*entity.Order{}
+	for _, side := range []entity.Side{entity.Buy, entity.Sell} {
+		if len(s.orders[side]) > 0 {
+			before[side] = &s.orders[side][len(s.orders[side])-1]
 		}
-		if after == nil {
-			s.events <- &event.TopOfBookChange{
-				Side: side,
-			}
-		} else if before != after {
-			s.events <- &event.TopOfBookChange{
-				Side:          side,
-				Price:         after.Price,
-				TotalQuantity: after.Amount,
-			}
-		}
-	}
-	var sellTop, buyTop *entity.Order
-	if len(s.orders[entity.Sell]) > 0 {
-		sellTop = &s.orders[entity.Sell][len(s.orders[entity.Sell])-1]
-	}
-	if len(s.orders[entity.Buy]) > 0 {
-		buyTop = &s.orders[entity.Buy][len(s.orders[entity.Buy])-1]
 	}
 	defer func() {
-		var nSellTop, nBuyTop *entity.Order
-		if len(s.orders[entity.Sell]) > 0 {
-			nSellTop = &s.orders[entity.Sell][len(s.orders[entity.Sell])-1]
+		for _, side := range []entity.Side{entity.Buy, entity.Sell} {
+			if len(s.orders[side]) > 0 {
+				s.checkBeforeAndAfter(side, before[side], &s.orders[side][len(s.orders[side])-1])
+			} else {
+				s.checkBeforeAndAfter(side, before[side], nil)
+			}
 		}
-		if len(s.orders[entity.Buy]) > 0 {
-			nBuyTop = &s.orders[entity.Buy][len(s.orders[entity.Buy])-1]
-		}
-
-		checkBeforeAndAfter(entity.Sell, sellTop, nSellTop)
-		checkBeforeAndAfter(entity.Buy, buyTop, nBuyTop)
 	}()
 
 	if _, orderExists := s.orderIDs[order.ID]; orderExists {
@@ -149,6 +183,18 @@ func (s *listEngine) CancelOrder(ctx context.Context, orderID entity.OrderID) er
 	if !orderExists {
 		return fmt.Errorf("order %v not found", orderID)
 	}
+
+	before := map[entity.Side]*entity.Order{}
+	if len(s.orders[side]) > 0 {
+		before[side] = &s.orders[side][len(s.orders[side])-1]
+	}
+	defer func() {
+		if len(s.orders[side]) > 0 {
+			s.checkBeforeAndAfter(side, before[side], &s.orders[side][len(s.orders[side])-1])
+		} else {
+			s.checkBeforeAndAfter(side, before[side], nil)
+		}
+	}()
 
 	sideOrders := s.orders[side]
 	index := len(sideOrders) - 1

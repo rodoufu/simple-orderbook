@@ -2,14 +2,16 @@ package engine
 
 import (
 	"context"
+	"github.com/rodoufu/simple-orderbook/pkg/io"
 	"reflect"
 	"testing"
+	"time"
 
 	"github.com/rodoufu/simple-orderbook/pkg/entity"
 	"github.com/rodoufu/simple-orderbook/pkg/event"
 )
 
-func Test_simpleEngine_AddOrder(t *testing.T) {
+func Test_listEngine_AddOrder(t *testing.T) {
 	t.Parallel()
 	type args struct {
 		ctx   context.Context
@@ -902,7 +904,7 @@ func Test_simpleEngine_AddOrder(t *testing.T) {
 	}
 }
 
-func Test_simpleEngine_CancelOrder(t *testing.T) {
+func Test_listEngine_CancelOrder(t *testing.T) {
 	t.Parallel()
 	type args struct {
 		ctx     context.Context
@@ -1065,6 +1067,504 @@ func Test_simpleEngine_CancelOrder(t *testing.T) {
 			}
 			if tt.engine != nil && !reflect.DeepEqual(tt.wantOrders, tt.engine.orders) {
 				t.Errorf("CancelOrder() got = %+v, want %+v", tt.engine.orders, tt.wantOrders)
+			}
+		})
+	}
+}
+
+func toListEventsOutput(ctx context.Context, events <-chan event.Event) []string {
+	var resp []string
+	done := ctx.Done()
+	for {
+		select {
+		case <-done:
+			return resp
+		case evt, ok := <-events:
+			if !ok {
+				return resp
+			}
+			resp = append(resp, evt.Output())
+		}
+	}
+}
+
+func Test_listEngine_ProcessTransaction(t *testing.T) {
+	t.Parallel()
+
+	type args struct {
+		ctx          context.Context
+		transactions []io.Transaction
+	}
+	tests := []struct {
+		name       string
+		engine     *listEngine
+		args       args
+		wantEvents []string
+	}{
+		{
+			name: "scenario 1 balanced book",
+			engine: &listEngine{
+				orders:   map[entity.Side][]entity.Order{},
+				events:   make(chan event.Event, 50),
+				orderIDs: map[entity.OrderID]entity.Side{},
+			},
+			args: args{
+				ctx: context.Background(),
+				transactions: []io.Transaction{
+					io.NewOrderTransaction{
+						Symbol: "IBM",
+						Order: entity.Order{
+							Amount:    100,
+							Price:     10,
+							ID:        1,
+							Side:      entity.Buy,
+							User:      1,
+							Timestamp: time.UnixMilli(1),
+						},
+					},
+					io.NewOrderTransaction{
+						Symbol: "IBM",
+						Order: entity.Order{
+							Amount:    100,
+							Price:     12,
+							ID:        2,
+							Side:      entity.Sell,
+							User:      1,
+							Timestamp: time.UnixMilli(2),
+						},
+					},
+					io.NewOrderTransaction{
+						Symbol: "IBM",
+						Order: entity.Order{
+							Amount:    100,
+							Price:     9,
+							ID:        101,
+							Side:      entity.Buy,
+							User:      2,
+							Timestamp: time.UnixMilli(3),
+						},
+					},
+					io.NewOrderTransaction{
+						Symbol: "IBM",
+						Order: entity.Order{
+							Amount:    100,
+							Price:     11,
+							ID:        102,
+							Side:      entity.Sell,
+							User:      2,
+							Timestamp: time.UnixMilli(4),
+						},
+					},
+					io.NewOrderTransaction{
+						Symbol: "IBM",
+						Order: entity.Order{
+							Amount:    100,
+							Price:     11,
+							ID:        3,
+							Side:      entity.Buy,
+							User:      1,
+							Timestamp: time.UnixMilli(5),
+						},
+					},
+					io.NewOrderTransaction{
+						Symbol: "IBM",
+						Order: entity.Order{
+							Amount:    100,
+							Price:     10,
+							ID:        103,
+							Side:      entity.Sell,
+							User:      2,
+							Timestamp: time.UnixMilli(6),
+						},
+					},
+					io.NewOrderTransaction{
+						Symbol: "IBM",
+						Order: entity.Order{
+							Amount:    100,
+							Price:     10,
+							ID:        4,
+							Side:      entity.Buy,
+							User:      1,
+							Timestamp: time.UnixMilli(7),
+						},
+					},
+					io.NewOrderTransaction{
+						Symbol: "IBM",
+						Order: entity.Order{
+							Amount:    100,
+							Price:     11,
+							ID:        104,
+							Side:      entity.Sell,
+							User:      2,
+							Timestamp: time.UnixMilli(8),
+						},
+					},
+					io.FlushAllOrdersTransaction{},
+				},
+			},
+			wantEvents: []string{
+				"A, 1, 1",
+				"B, B, 10, 100",
+				"A, 1, 2",
+				"B, S, 12, 100",
+				"A, 2, 101",
+				"A, 2, 102",
+				"B, S, 11, 100",
+				"R, 1, 3",
+				"R, 2, 103",
+				"A, 1, 4",
+				"B, B, 10, 200",
+				"A, 2, 104",
+				"B, S, 11, 200",
+			},
+		},
+		{
+			name: "scenario 10 balanced book, cancel behind best bid and offer",
+			engine: &listEngine{
+				orders:   map[entity.Side][]entity.Order{},
+				events:   make(chan event.Event, 50),
+				orderIDs: map[entity.OrderID]entity.Side{},
+			},
+			args: args{
+				ctx: context.Background(),
+				transactions: []io.Transaction{
+					io.NewOrderTransaction{
+						Symbol: "IBM",
+						Order: entity.Order{
+							Amount:    100,
+							Price:     10,
+							ID:        1,
+							Side:      entity.Buy,
+							User:      1,
+							Timestamp: time.UnixMilli(1),
+						},
+					},
+					io.NewOrderTransaction{
+						Symbol: "IBM",
+						Order: entity.Order{
+							Amount:    100,
+							Price:     12,
+							ID:        2,
+							Side:      entity.Sell,
+							User:      1,
+							Timestamp: time.UnixMilli(2),
+						},
+					},
+					io.NewOrderTransaction{
+						Symbol: "IBM",
+						Order: entity.Order{
+							Amount:    100,
+							Price:     9,
+							ID:        101,
+							Side:      entity.Buy,
+							User:      2,
+							Timestamp: time.UnixMilli(3),
+						},
+					},
+					io.NewOrderTransaction{
+						Symbol: "IBM",
+						Order: entity.Order{
+							Amount:    100,
+							Price:     11,
+							ID:        102,
+							Side:      entity.Sell,
+							User:      2,
+							Timestamp: time.UnixMilli(4),
+						},
+					},
+					io.CancelOrderTransaction{
+						User:    1,
+						OrderID: 2,
+					},
+					io.CancelOrderTransaction{
+						User:    2,
+						OrderID: 101,
+					},
+					io.FlushAllOrdersTransaction{},
+				},
+			},
+			wantEvents: []string{
+				"A, 1, 1",
+				"B, B, 10, 100",
+				"A, 1, 2",
+				"B, S, 12, 100",
+				"A, 2, 101",
+				"A, 2, 102",
+				"B, S, 11, 100",
+				"A, 1, 2",
+				"A, 2, 101",
+			},
+		},
+		{
+			name: "scenario 9 balanced book, cancel best bid and offer",
+			engine: &listEngine{
+				orders:   map[entity.Side][]entity.Order{},
+				events:   make(chan event.Event, 50),
+				orderIDs: map[entity.OrderID]entity.Side{},
+			},
+			args: args{
+				ctx: context.Background(),
+				transactions: []io.Transaction{
+					io.NewOrderTransaction{
+						Symbol: "IBM",
+						Order: entity.Order{
+							Amount:    100,
+							Price:     10,
+							ID:        1,
+							Side:      entity.Buy,
+							User:      1,
+							Timestamp: time.UnixMilli(1),
+						},
+					},
+					io.NewOrderTransaction{
+						Symbol: "IBM",
+						Order: entity.Order{
+							Amount:    100,
+							Price:     12,
+							ID:        2,
+							Side:      entity.Sell,
+							User:      1,
+							Timestamp: time.UnixMilli(2),
+						},
+					},
+					io.NewOrderTransaction{
+						Symbol: "IBM",
+						Order: entity.Order{
+							Amount:    100,
+							Price:     9,
+							ID:        101,
+							Side:      entity.Buy,
+							User:      2,
+							Timestamp: time.UnixMilli(3),
+						},
+					},
+					io.NewOrderTransaction{
+						Symbol: "IBM",
+						Order: entity.Order{
+							Amount:    100,
+							Price:     11,
+							ID:        102,
+							Side:      entity.Sell,
+							User:      2,
+							Timestamp: time.UnixMilli(4),
+						},
+					},
+					io.CancelOrderTransaction{
+						User:    1,
+						OrderID: 1,
+					},
+					io.CancelOrderTransaction{
+						User:    2,
+						OrderID: 102,
+					},
+					io.FlushAllOrdersTransaction{},
+				},
+			},
+			wantEvents: []string{
+				"A, 1, 1",
+				"B, B, 10, 100",
+				"A, 1, 2",
+				"B, S, 12, 100",
+				"A, 2, 101",
+				"A, 2, 102",
+				"B, S, 11, 100",
+				"A, 1, 1",
+				"B, B, 9, 100",
+				"A, 2, 102",
+				"B, S, 12, 100",
+			},
+		},
+		{
+			name: "scenario 11 balanced book, cancel all bids",
+			engine: &listEngine{
+				orders:   map[entity.Side][]entity.Order{},
+				events:   make(chan event.Event, 50),
+				orderIDs: map[entity.OrderID]entity.Side{},
+			},
+			args: args{
+				ctx: context.Background(),
+				transactions: []io.Transaction{
+					io.NewOrderTransaction{
+						Symbol: "IBM",
+						Order: entity.Order{
+							Amount:    100,
+							Price:     10,
+							ID:        1,
+							Side:      entity.Buy,
+							User:      1,
+							Timestamp: time.UnixMilli(1),
+						},
+					},
+					io.NewOrderTransaction{
+						Symbol: "IBM",
+						Order: entity.Order{
+							Amount:    100,
+							Price:     12,
+							ID:        2,
+							Side:      entity.Sell,
+							User:      1,
+							Timestamp: time.UnixMilli(2),
+						},
+					},
+					io.NewOrderTransaction{
+						Symbol: "IBM",
+						Order: entity.Order{
+							Amount:    100,
+							Price:     9,
+							ID:        101,
+							Side:      entity.Buy,
+							User:      2,
+							Timestamp: time.UnixMilli(3),
+						},
+					},
+					io.NewOrderTransaction{
+						Symbol: "IBM",
+						Order: entity.Order{
+							Amount:    100,
+							Price:     11,
+							ID:        102,
+							Side:      entity.Sell,
+							User:      2,
+							Timestamp: time.UnixMilli(4),
+						},
+					},
+					io.CancelOrderTransaction{
+						User:    1,
+						OrderID: 1,
+					},
+					io.CancelOrderTransaction{
+						User:    2,
+						OrderID: 101,
+					},
+					io.FlushAllOrdersTransaction{},
+				},
+			},
+			wantEvents: []string{
+				"A, 1, 1",
+				"B, B, 10, 100",
+				"A, 1, 2",
+				"B, S, 12, 100",
+				"A, 2, 101",
+				"A, 2, 102",
+				"B, S, 11, 100",
+				"A, 1, 1",
+				"B, B, 9, 100",
+				"A, 2, 101",
+				"B, B, -, -",
+			},
+		},
+		{
+			name: "scenario 12 balanced book, TOB volume changes",
+			engine: &listEngine{
+				orders:   map[entity.Side][]entity.Order{},
+				events:   make(chan event.Event, 50),
+				orderIDs: map[entity.OrderID]entity.Side{},
+			},
+			args: args{
+				ctx: context.Background(),
+				transactions: []io.Transaction{
+					io.NewOrderTransaction{
+						Symbol: "IBM",
+						Order: entity.Order{
+							Amount:    100,
+							Price:     10,
+							ID:        1,
+							Side:      entity.Buy,
+							User:      1,
+							Timestamp: time.UnixMilli(1),
+						},
+					},
+					io.NewOrderTransaction{
+						Symbol: "IBM",
+						Order: entity.Order{
+							Amount:    100,
+							Price:     12,
+							ID:        2,
+							Side:      entity.Sell,
+							User:      1,
+							Timestamp: time.UnixMilli(2),
+						},
+					},
+					io.NewOrderTransaction{
+						Symbol: "IBM",
+						Order: entity.Order{
+							Amount:    100,
+							Price:     9,
+							ID:        101,
+							Side:      entity.Buy,
+							User:      2,
+							Timestamp: time.UnixMilli(3),
+						},
+					},
+					io.NewOrderTransaction{
+						Symbol: "IBM",
+						Order: entity.Order{
+							Amount:    100,
+							Price:     11,
+							ID:        102,
+							Side:      entity.Sell,
+							User:      2,
+							Timestamp: time.UnixMilli(4),
+						},
+					},
+					io.NewOrderTransaction{
+						Symbol: "IBM",
+						Order: entity.Order{
+							Amount:    100,
+							Price:     11,
+							ID:        103,
+							Side:      entity.Sell,
+							User:      2,
+							Timestamp: time.UnixMilli(5),
+						},
+					},
+					io.CancelOrderTransaction{
+						User:    2,
+						OrderID: 103,
+					},
+					io.CancelOrderTransaction{
+						User:    2,
+						OrderID: 102,
+					},
+					io.CancelOrderTransaction{
+						User:    1,
+						OrderID: 2,
+					},
+					io.FlushAllOrdersTransaction{},
+				},
+			},
+			wantEvents: []string{
+				"A, 1, 1",
+				"B, B, 10, 100",
+				"A, 1, 2",
+				"B, S, 12, 100",
+				"A, 2, 101",
+				"A, 2, 102",
+				"B, S, 11, 100",
+				"A, 2, 103",
+				"B, S, 11, 200",
+				"A, 2, 103",
+				"B, S, 11, 100",
+				"A, 2, 102",
+				"B, S, 12, 100",
+				"A, 1, 2",
+				"B, S, -, -",
+			},
+		},
+	}
+	for _, tt := range tests {
+		tt := tt
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			for i, transaction := range tt.args.transactions {
+				if err := tt.engine.ProcessTransaction(tt.args.ctx, transaction); err != nil {
+					t.Errorf("ProcessTransaction(%d) error = %v", i, err)
+				}
+			}
+			tt.engine.Close()
+			gotEvents := toListEventsOutput(tt.args.ctx, tt.engine.events)
+			if !reflect.DeepEqual(gotEvents, tt.wantEvents) {
+				t.Errorf("ProcessTransaction() events: %v, want: %v", gotEvents, tt.wantEvents)
 			}
 		})
 	}

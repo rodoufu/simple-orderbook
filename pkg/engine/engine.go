@@ -5,6 +5,7 @@ import (
 	"io"
 
 	"github.com/rodoufu/simple-orderbook/pkg/entity"
+	obkIo "github.com/rodoufu/simple-orderbook/pkg/io"
 )
 
 // MatchingEngine checks for matching for every added order.
@@ -15,4 +16,5 @@ type MatchingEngine interface {
 	AddOrder(ctx context.Context, order entity.Order) error
 	// CancelOrder remove an order by id.
 	CancelOrder(ctx context.Context, orderID entity.OrderID) error
+	ProcessTransaction(ctx context.Context, transaction obkIo.Transaction) error
 }

@@ -50,50 +50,28 @@ func main() {
 		}
 	}()
 
-	// to support multiple markets
-	var mktEngine engine.MatchingEngine
-	newEngine := func() {
-		var events <-chan event.Event
-		mktEngine, events = engine.NewListEngine()
-		go func() {
-			done := ctx.Done()
-			for {
-				select {
-				case <-done:
+	mktEngine, events := engine.NewListEngine()
+	defer mktEngine.Close()
+	go func() {
+		done := ctx.Done()
+		for {
+			select {
+			case <-done:
+				return
+			case evt, ok := <-events:
+				if !ok {
 					return
-				case evt, ok := <-events:
-					if !ok {
-						return
-					}
-					if output, ok := evt.(event.Output); ok {
-						toOutput <- output
-					}
+				}
+				if output, ok := evt.(event.Output); ok {
+					toOutput <- output
 				}
 			}
-		}()
-	}
-	newEngine()
+		}
+	}()
 
 	for transaction := range transactions {
-		switch t := transaction.(type) {
-		case io.NewOrderTransaction:
-			if err = mktEngine.AddOrder(ctx, t.Order); err != nil {
-				log.WithError(err).Error("problem adding order")
-			}
-		case io.CancelOrderTransaction:
-			if err = mktEngine.CancelOrder(ctx, t.OrderID); err != nil {
-				log.WithError(err).Error("problem adding order")
-			}
-		case io.ErrorTransaction:
-			log.WithError(t.Err).Fatal("problem processing transaction")
-		case io.FlushAllOrdersTransaction:
-			if err = mktEngine.Close(); err != nil {
-				log.WithError(err).Fatal("problem closing engine")
-			}
-
-			newEngine()
-		default:
-			log.WithField("Transaction", t).Fatal("problem identifying transaction")
+		if err = mktEngine.ProcessTransaction(ctx, transaction); err != nil {
+			log.WithError(err).Error("problem processing transaction")
 		}
 	}
 }
