@@ -18,30 +18,40 @@ type listOrderBook struct {
 	orders map[entity.Side][]entity.Order
 }
 
-func (l *listOrderBook) TopBid(ctx context.Context) *entity.Order {
-	side := entity.Buy
-	l.mtx[side].RLock()
-	defer l.mtx[side].RUnlock()
+func (l *listOrderBook) TopBid(ctx context.Context) *BookLevel {
+	var cancel context.CancelFunc
+	ctx, cancel = context.WithCancel(ctx)
+	defer cancel()
 
-	lenBuy := len(l.orders[side])
-	if lenBuy == 0 {
+	levels := l.Bids(ctx)
+	done := ctx.Done()
+	select {
+	case <-done:
 		return nil
+	case level, ok := <-levels:
+		if !ok {
+			return nil
+		}
+		return &level
 	}
-	resp := l.orders[side][lenBuy-1]
-	return &resp
 }
 
-func (l *listOrderBook) TopAsk(ctx context.Context) *entity.Order {
-	side := entity.Sell
-	l.mtx[side].RLock()
-	defer l.mtx[side].RUnlock()
+func (l *listOrderBook) TopAsk(ctx context.Context) *BookLevel {
+	var cancel context.CancelFunc
+	ctx, cancel = context.WithCancel(ctx)
+	defer cancel()
 
-	lenBuy := len(l.orders[side])
-	if lenBuy == 0 {
+	levels := l.Asks(ctx)
+	done := ctx.Done()
+	select {
+	case <-done:
 		return nil
+	case level, ok := <-levels:
+		if !ok {
+			return nil
+		}
+		return &level
 	}
-	resp := l.orders[side][lenBuy-1]
-	return &resp
 }
 
 func (l *listOrderBook) ProcessEvent(ctx context.Context, evt event.Event) error {
@@ -69,24 +79,37 @@ func (l *listOrderBook) ProcessEvent(ctx context.Context, evt event.Event) error
 	return nil
 }
 
-func (l *listOrderBook) Bids(ctx context.Context) <-chan entity.Order {
-	l.mtx[entity.Buy].RLock()
-	resp := make(chan entity.Order)
+func (l *listOrderBook) getLevel(ctx context.Context, side entity.Side) <-chan BookLevel {
+	l.mtx[side].RLock()
+	resp := make(chan BookLevel)
 	if l == nil {
 		close(resp)
 		return resp
 	}
 
 	go func() {
-		defer l.mtx[entity.Buy].RUnlock()
+		defer l.mtx[side].RUnlock()
 		defer close(resp)
 		done := ctx.Done()
 
-		for _, order := range l.orders[entity.Buy] {
+		for i := len(l.orders[side]) - 1; i >= 0; i-- {
+			order := l.orders[side][i]
+			level := BookLevel{
+				Side:  side,
+				Price: order.Price,
+			}
+
+			for ; i >= 0 && order.Price == l.orders[side][i].Price; i-- {
+				level.TotalQuantity += l.orders[side][i].Amount
+			}
+			if i >= 0 && order.Price != l.orders[side][i].Price {
+				i++
+			}
+
 			select {
 			case <-done:
 				return
-			case resp <- order:
+			case resp <- level:
 			}
 		}
 	}()
@@ -95,29 +118,13 @@ func (l *listOrderBook) Bids(ctx context.Context) <-chan entity.Order {
 
 }
 
-func (l *listOrderBook) Asks(ctx context.Context) <-chan entity.Order {
-	l.mtx[entity.Sell].RLock()
-	resp := make(chan entity.Order)
-	if l == nil {
-		close(resp)
-		return resp
-	}
+func (l *listOrderBook) Bids(ctx context.Context) <-chan BookLevel {
+	return l.getLevel(ctx, entity.Buy)
 
-	go func() {
-		defer l.mtx[entity.Sell].RUnlock()
-		defer close(resp)
-		done := ctx.Done()
+}
 
-		for _, order := range l.orders[entity.Sell] {
-			select {
-			case <-done:
-				return
-			case resp <- order:
-			}
-		}
-	}()
-
-	return resp
+func (l *listOrderBook) Asks(ctx context.Context) <-chan BookLevel {
+	return l.getLevel(ctx, entity.Sell)
 }
 
 func (l *listOrderBook) cancelOrder(ctx context.Context, orderID entity.OrderID, side entity.Side) error {
