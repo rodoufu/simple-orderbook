@@ -4,14 +4,16 @@ test:
 build:
 	cd cmd/simplebook && go build
 
-run:
+run: build
 	./cmd/simplebook/simplebook
 
 clean:
 	rm cmd/simplebook/simplebook || true
+	docker image rm github.com/rodoufu/simple-orderbook:latest || true
 
 build_docker:
 	docker build -t github.com/rodoufu/simple-orderbook:latest .
 
-run_docker:
-	docker run --rm --name simplebook -v $(pwd)/input_file.csv:/app/input_file.csv github.com/rodoufu/simple-orderbook:latest input_file.csv
+pwd=$(shell pwd)
+run_docker: build_docker
+	docker run --rm --name simplebook -v $(pwd)/input_file.csv:/app/input_file.csv -it github.com/rodoufu/simple-orderbook:latest

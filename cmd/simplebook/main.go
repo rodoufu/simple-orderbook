@@ -45,7 +45,9 @@ func main() {
 				if !ok {
 					return
 				}
-				fmt.Println(output.Output())
+				if msg := output.Output(); len(msg) > 0 {
+					fmt.Println(msg)
+				}
 			}
 		}
 	}()
