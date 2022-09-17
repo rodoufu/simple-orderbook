@@ -1,11 +1,14 @@
+pwd=$(shell pwd)
+input_file=input_file.csv
+
 test:
 	go test -v --cover ./...
 
-build:
+build: test
 	cd cmd/simplebook && go build
 
 run: build
-	./cmd/simplebook/simplebook
+	./cmd/simplebook/simplebook $(input_file)
 
 clean:
 	rm cmd/simplebook/simplebook || true
@@ -14,6 +17,5 @@ clean:
 build_docker:
 	docker build -t github.com/rodoufu/simple-orderbook:latest .
 
-pwd=$(shell pwd)
 run_docker: build_docker
-	docker run --rm --name simplebook -v $(pwd)/input_file.csv:/app/input_file.csv -it github.com/rodoufu/simple-orderbook:latest
+	docker run --rm --name simplebook -v $(pwd)/$(input_file):/app/$(input_file) -it github.com/rodoufu/simple-orderbook:latest $(input_file)

@@ -25,12 +25,15 @@ func main() {
 	logger.SetOutput(os.Stderr)
 	log := logger.WithFields(logrus.Fields{})
 
-	log.Info("staring service")
-
+	fileName := "input_file.csv"
+	if len(os.Args) == 2 {
+		fileName = os.Args[1]
+	}
+	log.WithField("FileName", fileName).Info("staring service")
 	// The io.ReadTransactions creates a goroutine to read the file
-	transactions, err := io.ReadTransactions(ctx, "input_file.csv")
+	transactions, err := io.ReadTransactions(ctx, fileName)
 	if err != nil {
-		log.WithError(err).Fatal("problem loading transactions parser")
+		log.WithField("FileName", fileName).WithError(err).Fatal("problem loading transactions parser")
 	}
 
 	// Writing to stdout in a specific goroutine.
