@@ -87,93 +87,52 @@ func (o *Order) Match(other *Order) (*Order, *Trade) {
 	if o == nil || other == nil || o.Side.Opposite() != other.Side {
 		return nil, nil
 	}
-	switch o.Side {
-	case Buy:
-		if o.Price >= other.Price {
-			if o.Amount == other.Amount {
-				return nil, &Trade{
+	aOrder := o
+	bOrder := other
+	if o.Side == Sell {
+		aOrder = other
+		bOrder = o
+	}
+	if aOrder.Price >= bOrder.Price {
+		if aOrder.Amount == bOrder.Amount {
+			return nil, &Trade{
+				TakeOrderID:  o.ID,
+				MakerOrderID: other.ID,
+				Amount:       aOrder.Amount,
+				Price:        bOrder.Price,
+				Timestamp:    time.Now(),
+			}
+		} else if aOrder.Amount > bOrder.Amount {
+			return &Order{
+					Amount:    aOrder.Amount - bOrder.Amount,
+					Price:     aOrder.Price,
+					ID:        aOrder.ID,
+					Side:      aOrder.Side,
+					User:      aOrder.User,
+					Timestamp: aOrder.Timestamp,
+				}, &Trade{
 					TakeOrderID:  o.ID,
 					MakerOrderID: other.ID,
-					Amount:       o.Amount,
-					Price:        other.Price,
+					Amount:       bOrder.Amount,
+					Price:        bOrder.Price,
 					Timestamp:    time.Now(),
 				}
-			} else if o.Amount > other.Amount {
-				return &Order{
-						Amount:    o.Amount - other.Amount,
-						Price:     o.Price,
-						ID:        o.ID,
-						Side:      o.Side,
-						User:      o.User,
-						Timestamp: o.Timestamp,
-					}, &Trade{
-						TakeOrderID:  o.ID,
-						MakerOrderID: other.ID,
-						Amount:       other.Amount,
-						Price:        other.Price,
-						Timestamp:    time.Now(),
-					}
-			} else {
-				return &Order{
-						Amount:    other.Amount - o.Amount,
-						Price:     other.Price,
-						ID:        other.ID,
-						Side:      other.Side,
-						User:      other.User,
-						Timestamp: other.Timestamp,
-					}, &Trade{
-						TakeOrderID:  o.ID,
-						MakerOrderID: other.ID,
-						Amount:       o.Amount,
-						Price:        other.Price,
-						Timestamp:    time.Now(),
-					}
-			}
-		}
-	case Sell:
-		if o.Price <= other.Price {
-			if o.Amount == other.Amount {
-				return nil, &Trade{
+		} else {
+			return &Order{
+					Amount:    bOrder.Amount - aOrder.Amount,
+					Price:     bOrder.Price,
+					ID:        bOrder.ID,
+					Side:      bOrder.Side,
+					User:      bOrder.User,
+					Timestamp: bOrder.Timestamp,
+				}, &Trade{
 					TakeOrderID:  o.ID,
 					MakerOrderID: other.ID,
-					Amount:       o.Amount,
-					Price:        o.Price,
+					Amount:       aOrder.Amount,
+					Price:        bOrder.Price,
 					Timestamp:    time.Now(),
 				}
-			} else if o.Amount > other.Amount {
-				return &Order{
-						Amount:    o.Amount - other.Amount,
-						Price:     o.Price,
-						ID:        o.ID,
-						Side:      o.Side,
-						User:      o.User,
-						Timestamp: o.Timestamp,
-					}, &Trade{
-						TakeOrderID:  o.ID,
-						MakerOrderID: other.ID,
-						Amount:       other.Amount,
-						Price:        o.Price,
-						Timestamp:    time.Now(),
-					}
-			} else {
-				return &Order{
-						Amount:    other.Amount - o.Amount,
-						Price:     other.Price,
-						ID:        other.ID,
-						Side:      other.Side,
-						User:      other.User,
-						Timestamp: other.Timestamp,
-					}, &Trade{
-						TakeOrderID:  o.ID,
-						MakerOrderID: other.ID,
-						Amount:       o.Amount,
-						Price:        o.Price,
-						Timestamp:    time.Now(),
-					}
-			}
 		}
-	default:
-		panic(fmt.Sprintf("invalid side: %v", o.Side))
 	}
 	return nil, nil
 }

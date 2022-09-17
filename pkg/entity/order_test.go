@@ -161,6 +161,8 @@ func TestOrder_Less(t *testing.T) {
 
 func TestOrder_Match(t *testing.T) {
 	t.Parallel()
+	time1 := time.Now()
+	time2 := time1.Add(time.Second)
 	type args struct {
 		other *Order
 	}
@@ -171,18 +173,450 @@ func TestOrder_Match(t *testing.T) {
 		wantOrder *Order
 		wantTrade *Trade
 	}{
-		// TODO: Add test cases.
+		{
+			name: "empty",
+		},
+		{
+			name: "same side",
+			order: &Order{
+				Side: Buy,
+			},
+			args: args{
+				other: &Order{
+					Side: Buy,
+				},
+			},
+		},
+		{
+			name: "buy (10, 10) sell (20, 10) no order, no trade",
+			order: &Order{
+				Side:   Buy,
+				Price:  10,
+				Amount: 10,
+				ID:     1,
+				User:   1,
+			},
+			args: args{
+				other: &Order{
+					Side:   Sell,
+					Price:  20,
+					Amount: 10,
+					ID:     2,
+					User:   2,
+				},
+			},
+		},
+		{
+			name: "buy (10, 10) sell (10, 10) same price, no order, trade",
+			order: &Order{
+				Side:   Buy,
+				Price:  10,
+				Amount: 10,
+				ID:     1,
+				User:   1,
+			},
+			args: args{
+				other: &Order{
+					Side:   Sell,
+					Price:  10,
+					Amount: 10,
+					ID:     2,
+					User:   2,
+				},
+			},
+			wantTrade: &Trade{
+				TakeOrderID:  1,
+				MakerOrderID: 2,
+				Amount:       10,
+				Price:        10,
+			},
+		},
+		{
+			name: "buy (10, 10) sell (10, 10) same price, order larger than book, trade",
+			order: &Order{
+				Side:      Buy,
+				Price:     10,
+				Amount:    10,
+				ID:        1,
+				User:      1,
+				Timestamp: time1,
+			},
+			args: args{
+				other: &Order{
+					Side:   Sell,
+					Price:  10,
+					Amount: 9,
+					ID:     2,
+					User:   2,
+				},
+			},
+			wantOrder: &Order{
+				Amount:    1,
+				Price:     10,
+				ID:        1,
+				Side:      Buy,
+				User:      1,
+				Timestamp: time1,
+			},
+			wantTrade: &Trade{
+				TakeOrderID:  1,
+				MakerOrderID: 2,
+				Amount:       9,
+				Price:        10,
+			},
+		},
+		{
+			name: "buy (10, 10) sell (10, 10) same price, book order larger, trade",
+			order: &Order{
+				Side:      Buy,
+				Price:     10,
+				Amount:    10,
+				ID:        1,
+				User:      1,
+				Timestamp: time1,
+			},
+			args: args{
+				other: &Order{
+					Side:      Sell,
+					Price:     10,
+					Amount:    11,
+					ID:        2,
+					User:      2,
+					Timestamp: time2,
+				},
+			},
+			wantOrder: &Order{
+				Amount:    1,
+				Price:     10,
+				ID:        2,
+				Side:      Sell,
+				User:      2,
+				Timestamp: time2,
+			},
+			wantTrade: &Trade{
+				TakeOrderID:  1,
+				MakerOrderID: 2,
+				Amount:       10,
+				Price:        10,
+			},
+		},
+		{
+			name: "buy (20, 10) sell (10, 10) buy larger price, no order, trade",
+			order: &Order{
+				Side:   Buy,
+				Price:  20,
+				Amount: 10,
+				ID:     1,
+				User:   1,
+			},
+			args: args{
+				other: &Order{
+					Side:   Sell,
+					Price:  10,
+					Amount: 10,
+					ID:     2,
+					User:   2,
+				},
+			},
+			wantTrade: &Trade{
+				TakeOrderID:  1,
+				MakerOrderID: 2,
+				Amount:       10,
+				Price:        10,
+			},
+		},
+		{
+			name: "buy (20, 10) sell (10, 10) buy larger price, order larger than book, trade",
+			order: &Order{
+				Side:      Buy,
+				Price:     20,
+				Amount:    10,
+				ID:        1,
+				User:      1,
+				Timestamp: time1,
+			},
+			args: args{
+				other: &Order{
+					Side:   Sell,
+					Price:  10,
+					Amount: 9,
+					ID:     2,
+					User:   2,
+				},
+			},
+			wantOrder: &Order{
+				Amount:    1,
+				Price:     20,
+				ID:        1,
+				Side:      Buy,
+				User:      1,
+				Timestamp: time1,
+			},
+			wantTrade: &Trade{
+				TakeOrderID:  1,
+				MakerOrderID: 2,
+				Amount:       9,
+				Price:        10,
+			},
+		},
+		{
+			name: "buy (20, 10) sell (10, 10) buy larger price, book order larger, trade",
+			order: &Order{
+				Side:      Buy,
+				Price:     20,
+				Amount:    10,
+				ID:        1,
+				User:      1,
+				Timestamp: time1,
+			},
+			args: args{
+				other: &Order{
+					Side:      Sell,
+					Price:     10,
+					Amount:    11,
+					ID:        2,
+					User:      2,
+					Timestamp: time2,
+				},
+			},
+			wantOrder: &Order{
+				Amount:    1,
+				Price:     10,
+				ID:        2,
+				Side:      Sell,
+				User:      2,
+				Timestamp: time2,
+			},
+			wantTrade: &Trade{
+				TakeOrderID:  1,
+				MakerOrderID: 2,
+				Amount:       10,
+				Price:        10,
+			},
+		},
+		{
+			name: "sell (20, 10) buy (10, 10) no order, no trade",
+			order: &Order{
+				Side:   Sell,
+				Price:  20,
+				Amount: 10,
+				ID:     2,
+				User:   2,
+			},
+			args: args{
+				other: &Order{
+					Side:   Buy,
+					Price:  10,
+					Amount: 10,
+					ID:     1,
+					User:   1,
+				},
+			},
+		},
+		{
+			name: "sell (10, 10) buy (10, 10) same price, no order, trade",
+			order: &Order{
+				Side:   Sell,
+				Price:  10,
+				Amount: 10,
+				ID:     2,
+				User:   2,
+			},
+			args: args{
+				other: &Order{
+					Side:   Buy,
+					Price:  10,
+					Amount: 10,
+					ID:     1,
+					User:   1,
+				},
+			},
+			wantTrade: &Trade{
+				TakeOrderID:  2,
+				MakerOrderID: 1,
+				Amount:       10,
+				Price:        10,
+			},
+		},
+		{
+			name: "sell (10, 10) buy (10, 10) same price, order larger than book, trade",
+			order: &Order{
+				Side:   Sell,
+				Price:  10,
+				Amount: 9,
+				ID:     2,
+				User:   2,
+			},
+			args: args{
+				other: &Order{
+					Side:      Buy,
+					Price:     10,
+					Amount:    10,
+					ID:        1,
+					User:      1,
+					Timestamp: time1,
+				},
+			},
+			wantOrder: &Order{
+				Amount:    1,
+				Price:     10,
+				ID:        1,
+				Side:      Buy,
+				User:      1,
+				Timestamp: time1,
+			},
+			wantTrade: &Trade{
+				TakeOrderID:  2,
+				MakerOrderID: 1,
+				Amount:       9,
+				Price:        10,
+			},
+		},
+		{
+			name: "sell (10, 10) buy (10, 10) same price, book order larger, trade",
+			order: &Order{
+
+				Side:      Sell,
+				Price:     10,
+				Amount:    11,
+				ID:        2,
+				User:      2,
+				Timestamp: time2,
+			},
+			args: args{
+				other: &Order{
+					Side:      Buy,
+					Price:     10,
+					Amount:    10,
+					ID:        1,
+					User:      1,
+					Timestamp: time1,
+				},
+			},
+			wantOrder: &Order{
+				Amount:    1,
+				Price:     10,
+				ID:        2,
+				Side:      Sell,
+				User:      2,
+				Timestamp: time2,
+			},
+			wantTrade: &Trade{
+				TakeOrderID:  2,
+				MakerOrderID: 1,
+				Amount:       10,
+				Price:        10,
+			},
+		},
+		{
+			name: "sell (10, 10) buy (20, 10) buy larger price, no order, trade",
+			order: &Order{
+				Side:   Sell,
+				Price:  10,
+				Amount: 10,
+				ID:     2,
+				User:   2,
+			},
+			args: args{
+				other: &Order{
+					Side:   Buy,
+					Price:  20,
+					Amount: 10,
+					ID:     1,
+					User:   1,
+				},
+			},
+			wantTrade: &Trade{
+				TakeOrderID:  2,
+				MakerOrderID: 1,
+				Amount:       10,
+				Price:        10,
+			},
+		},
+		{
+			name: "sell (10, 10) buy (20, 10) buy larger price, order larger than book, trade",
+			order: &Order{
+				Side:   Sell,
+				Price:  10,
+				Amount: 9,
+				ID:     2,
+				User:   2,
+			},
+			args: args{
+				other: &Order{
+					Side:      Buy,
+					Price:     20,
+					Amount:    10,
+					ID:        1,
+					User:      1,
+					Timestamp: time1,
+				},
+			},
+			wantOrder: &Order{
+				Amount:    1,
+				Price:     20,
+				ID:        1,
+				Side:      Buy,
+				User:      1,
+				Timestamp: time1,
+			},
+			wantTrade: &Trade{
+				TakeOrderID:  2,
+				MakerOrderID: 1,
+				Amount:       9,
+				Price:        10,
+			},
+		},
+		{
+			name: "sell (10, 10) buy (20, 10) buy larger price, book order larger, trade",
+			order: &Order{
+				Side:      Sell,
+				Price:     10,
+				Amount:    11,
+				ID:        2,
+				User:      2,
+				Timestamp: time2,
+			},
+			args: args{
+				other: &Order{
+					Side:      Buy,
+					Price:     20,
+					Amount:    10,
+					ID:        1,
+					User:      1,
+					Timestamp: time1,
+				},
+			},
+			wantOrder: &Order{
+				Amount:    1,
+				Price:     10,
+				ID:        2,
+				Side:      Sell,
+				User:      2,
+				Timestamp: time2,
+			},
+			wantTrade: &Trade{
+				TakeOrderID:  2,
+				MakerOrderID: 1,
+				Amount:       10,
+				Price:        10,
+			},
+		},
 	}
 	for _, tt := range tests {
 		tt := tt
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
 			gotOrder, gotTrade := tt.order.Match(tt.args.other)
+			if gotTrade != nil && tt.wantTrade != nil {
+				// Hardcoding the timestamp
+				tt.wantTrade.Timestamp = gotTrade.Timestamp
+			}
 			if !reflect.DeepEqual(gotOrder, tt.wantOrder) {
-				t.Errorf("Match() got = %v, want %v", gotOrder, tt.wantOrder)
+				t.Errorf("Match() gotOrder = %+v, want %+v", gotOrder, tt.wantOrder)
 			}
 			if !reflect.DeepEqual(gotTrade, tt.wantTrade) {
-				t.Errorf("Match() got1 = %v, want %v", gotTrade, tt.wantTrade)
+				t.Errorf("Match() gotTrade = %+v, want %+v", gotTrade, tt.wantTrade)
 			}
 		})
 	}
