@@ -50,16 +50,26 @@ func (s *listEngine) AddOrder(ctx context.Context, order entity.Order) error {
 			delete(s.orderIDs, oppositeBook[i].ID)
 			s.events <- event.OrderFilled{
 				Order: oppositeBook[i],
+				Full:  true,
 			}
 			order.Amount = 0
 			oppositeBook = oppositeBook[:i]
 			break
 		}
 
-		oppositeBook = oppositeBook[:i]
 		if remainingOrder.Side == order.Side {
+			s.events <- event.OrderFilled{
+				Order: oppositeBook[i],
+				Full:  true,
+			}
+			oppositeBook = oppositeBook[:i]
 			order = *remainingOrder
 		} else {
+			s.events <- event.OrderFilled{
+				Order: *remainingOrder,
+				Full:  false,
+			}
+			oppositeBook = oppositeBook[:i]
 			oppositeBook = append(oppositeBook, *remainingOrder)
 			order.Amount = 0
 			break

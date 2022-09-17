@@ -32,7 +32,11 @@ func (l *listOrderBook) ProcessEvent(ctx context.Context, evt event.Event) error
 	case event.OrderUpdated:
 		return l.updateOrder(ctx, it.Order)
 	case event.OrderFilled:
-		return l.cancelOrder(ctx, it.Order.ID, it.Order.Side)
+		if it.Full {
+			return l.cancelOrder(ctx, it.Order.ID, it.Order.Side)
+		} else {
+			return l.updateOrder(ctx, it.Order)
+		}
 	default:
 		return fmt.Errorf("unexpected event: %v", evt)
 	}
