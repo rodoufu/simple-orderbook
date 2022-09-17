@@ -1,6 +1,8 @@
 package io
 
-import "github.com/rodoufu/simple-orderbook/pkg/entity"
+import (
+	"github.com/rodoufu/simple-orderbook/pkg/entity"
+)
 
 type Transaction interface {
 	transaction()

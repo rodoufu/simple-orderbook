@@ -2,13 +2,13 @@ package engine
 
 import (
 	"context"
-	"github.com/rodoufu/simple-orderbook/pkg/io"
 	"reflect"
 	"testing"
 	"time"
 
 	"github.com/rodoufu/simple-orderbook/pkg/entity"
 	"github.com/rodoufu/simple-orderbook/pkg/event"
+	"github.com/rodoufu/simple-orderbook/pkg/io"
 )
 
 func Test_listEngine_AddOrder(t *testing.T) {
